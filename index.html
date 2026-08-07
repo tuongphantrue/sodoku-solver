@@ -238,7 +238,7 @@
     </div>
   </section>
 
-  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 8 (consensus mode)</span></footer>
+  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 9 (confident-template + veto)</span></footer>
 </div>
 
 <script>
@@ -820,11 +820,13 @@
     return m ? parseInt(m[0], 10) : 0;
   }
 
-  // Correctness over completeness: template matching and Tesseract are two
-  // independent methods that fail in different ways. A digit only gets
-  // auto-filled when BOTH agree — any disagreement, or either one drawing a
-  // blank, leaves the cell empty for you to fill in by hand rather than
-  // risk a wrong-but-present digit slipping through unnoticed.
+  // Correctness over completeness — but calibrated properly this time:
+  // - Template match confident AND Tesseract silent or agrees → trust it.
+  // - Template match confident BUT Tesseract actively found a DIFFERENT
+  //   digit → real disagreement between two methods, leave it blank.
+  // - Template not confident → fall back to whatever Tesseract found, if any.
+  // Silence from Tesseract is common on unfamiliar fonts and isn't the same
+  // signal as active disagreement, so the two are no longer treated alike.
   async function ocrGrid(sourceCanvas, statusEl, statusPrefix){
     const S = 630, cellSize = S/9, pad = Math.round(cellSize*0.13);
     const worker = await ensureOcrWorker(statusEl);
@@ -841,7 +843,7 @@
       const binarized = binarizeCell(imgData);
 
       const tpl = matchTemplate(binarized);
-      const tplDigit = (tpl.digit && tpl.score >= 0.4 && tpl.margin >= 0.1) ? tpl.digit : 0;
+      const tplConfident = tpl.digit && tpl.score >= 0.5 && tpl.margin >= 0.15;
 
       const cellCanvas = document.createElement('canvas');
       cellCanvas.width=w; cellCanvas.height=h;
@@ -849,13 +851,16 @@
       let ocrDigit = 0;
       try { ocrDigit = await recognizeDigit(worker, cellCanvas); } catch(e){ ocrDigit = 0; }
 
-      if (tplDigit && ocrDigit && tplDigit === ocrDigit){
-        values[p] = tplDigit; flags[p] = true;
-      } else if (tplDigit && !ocrDigit && tpl.score >= 0.6 && tpl.margin >= 0.2){
-        // template alone, but only when it's unusually confident
-        values[p] = tplDigit; flags[p] = true;
+      const disagreement = tpl.digit && ocrDigit && tpl.digit !== ocrDigit;
+
+      if (disagreement){
+        uncertain++; // two independent methods actively disagree — don't guess
+      } else if (tplConfident){
+        values[p] = tpl.digit; flags[p] = true;
+      } else if (ocrDigit){
+        values[p] = ocrDigit; flags[p] = true;
       } else {
-        uncertain++; // left blank on purpose — disagreement or low confidence
+        uncertain++; // left blank on purpose — low confidence from both methods
       }
     }
     return { values, flags, nonBlank, uncertain };
