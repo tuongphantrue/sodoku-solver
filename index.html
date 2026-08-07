@@ -699,7 +699,7 @@
       try {
         const { data } = await worker.recognize(cellCanvas);
         const m = (data.text||'').match(/[1-9]/);
-        if (m && data.confidence >= 35){ values[p] = parseInt(m[0],10); flags[p] = true; }
+        if (m){ values[p] = parseInt(m[0],10); flags[p] = true; }
       } catch(e){ /* leave blank */ }
     }
     return { values, flags, nonBlank };
