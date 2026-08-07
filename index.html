@@ -3,564 +3,183 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Sudoku — Worksheet</title>
+<title>Sudoku Scanner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   :root{
     --paper: #EAF1F5;
-    --paper-edge: #DCE9F0;
     --grid-line: #B9CFDD;
     --ink-navy: #17324D;
     --ink-navy-soft: #2C4C6B;
-    --pencil-grey: #55606B;
-    --pencil-note: #6C6280;
     --red: #B23A2E;
     --red-soft: #C0392B;
+    --green: #1C8A52;
     --highlight: #FFE9A8;
-    --highlight-line: #F3DFA0;
     --peer: #DCEAF2;
-    --margin-line: #E3AFA8;
   }
-
   * { box-sizing: border-box; }
-
   html, body {
-    margin: 0;
-    min-height: 100vh;
+    margin: 0; min-height: 100vh;
     background: #0F2333;
-    background-image:
-      radial-gradient(ellipse at top left, rgba(255,255,255,0.04), transparent 60%);
     font-family: 'Inter', sans-serif;
     color: var(--ink-navy);
   }
-
-  body {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 40px 16px 60px;
-  }
-
+  body { display: flex; justify-content: center; padding: 32px 14px 50px; }
   .page {
-    position: relative;
-    width: min(760px, 100%);
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        var(--paper) 0px, var(--paper) 27px,
-        var(--grid-line) 27px, var(--grid-line) 28px
-      );
-    border-radius: 3px;
-    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55), 0 2px 0 rgba(255,255,255,0.4) inset;
-    padding: 36px 34px 30px 64px;
-    overflow: hidden;
-  }
-
-  .page::before {
-    /* torn top edge */
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 10px;
-    background: linear-gradient(120deg, transparent 48%, var(--paper-edge) 48%, var(--paper-edge) 52%, transparent 52%),
-                linear-gradient(60deg, transparent 48%, var(--paper-edge) 48%, var(--paper-edge) 52%, transparent 52%);
-    background-size: 22px 10px;
-    background-color: #0F2333;
-  }
-
-  .margin-rule {
-    position: absolute;
-    top: 0; bottom: 0; left: 42px;
-    width: 1.5px;
-    background: var(--margin-line);
-    opacity: 0.55;
-  }
-
-  header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 22px;
-    flex-wrap: wrap;
-  }
-
-  .title {
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    font-size: 28px;
-    letter-spacing: 0.5px;
-    color: var(--ink-navy);
-  }
-  .title span { color: var(--red-soft); }
-
-  .subtitle {
-    font-size: 12.5px;
-    color: var(--ink-navy-soft);
-    opacity: 0.75;
-    font-style: italic;
-  }
-
-  .meta-row {
-    display: flex;
-    gap: 18px;
-    font-family: 'Space Mono', monospace;
-    font-size: 13px;
-    color: var(--ink-navy-soft);
-  }
-  .meta-row b { color: var(--red-soft); }
-
-  .board-wrap {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    margin: 6px 0 26px;
-  }
-
-  #board {
-    display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    grid-template-rows: repeat(9, 1fr);
-    width: min(100%, 480px);
-    aspect-ratio: 1;
-    background: var(--ink-navy);
-    border: 3px solid var(--ink-navy);
-    border-radius: 2px;
-    box-shadow: 0 6px 18px rgba(23,50,77,0.25);
-  }
-
-  .cell {
-    position: relative;
-    background: rgba(255,255,255,0.55);
-    border: 1px solid var(--grid-line);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Space Mono', monospace;
-    font-size: clamp(16px, 3.4vw, 24px);
-    font-weight: 700;
-    color: var(--ink-navy);
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.12s ease;
-  }
-  .cell:nth-child(3n) { border-right: 2.5px solid var(--ink-navy); }
-  .cell:nth-child(9n+1) { border-left: 2.5px solid var(--ink-navy); }
-  .cell:nth-child(n+19):nth-child(-n+27),
-  .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2.5px solid var(--ink-navy); }
-  .row0, .row3, .row6 { border-top: 2.5px solid var(--ink-navy); }
-
-  .cell.given { color: var(--ink-navy); font-weight: 700; }
-  .cell.user { color: var(--pencil-grey); font-weight: 500; }
-  .cell.solved-fill { color: var(--red-soft); font-weight: 600; }
-
-  .cell.peer { background: var(--peer); }
-  .cell.selected { background: var(--highlight); box-shadow: inset 0 0 0 2px var(--highlight-line); }
-  .cell.same-value { background: #D9F0E4; }
-  .cell.conflict { background: #F6D3CE; color: var(--red) !important; }
-
-  .cell .notes {
-    position: absolute;
-    inset: 3px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    font-family: 'Caveat', cursive;
-    font-weight: 600;
-    color: var(--pencil-note);
-    pointer-events: none;
-  }
-  .cell .notes span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(9px, 1.6vw, 13px);
-    line-height: 1;
-  }
-
-  .stamp {
-    position: absolute;
-    top: 8%;
-    right: 4%;
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    font-size: clamp(20px, 4vw, 34px);
-    color: var(--red);
-    border: 4px solid var(--red);
-    padding: 6px 16px;
-    border-radius: 6px;
-    transform: rotate(-9deg) scale(0.4);
-    opacity: 0;
-    letter-spacing: 3px;
-    background: rgba(178,58,46,0.06);
-    pointer-events: none;
-    transition: transform 0.45s cubic-bezier(.2,1.4,.4,1), opacity 0.3s ease;
-    mix-blend-mode: multiply;
-  }
-  .stamp.show { opacity: 0.88; transform: rotate(-9deg) scale(1); }
-
-  .controls {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .numpad {
-    display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    gap: 6px;
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
-  }
-  .numpad button {
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    font-size: 16px;
-    padding: 9px 0;
-    border-radius: 4px;
-    border: 1.5px solid var(--ink-navy-soft);
-    background: rgba(255,255,255,0.5);
-    color: var(--ink-navy);
-    cursor: pointer;
-    transition: transform 0.08s ease, background 0.15s ease;
-  }
-  .numpad button:hover { background: var(--highlight); }
-  .numpad button:active { transform: scale(0.94); }
-  .numpad button.erase { grid-column: span 1; color: var(--red-soft); border-color: var(--red-soft); }
-
-  .toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-    align-items: center;
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  .toolbar button, .toolbar select {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 9px 14px;
-    border-radius: 4px;
-    border: 1.5px solid var(--ink-navy-soft);
-    background: rgba(255,255,255,0.6);
-    color: var(--ink-navy);
-    cursor: pointer;
-    transition: background 0.15s ease, transform 0.08s ease;
-  }
-  .toolbar button:hover, .toolbar select:hover { background: var(--highlight); }
-  .toolbar button:active { transform: scale(0.96); }
-
-  .toolbar button.primary {
-    background: var(--ink-navy);
-    color: #EAF1F5;
-    border-color: var(--ink-navy);
-  }
-  .toolbar button.primary:hover { background: var(--ink-navy-soft); }
-
-  .toolbar button.notes-toggle.active {
-    background: var(--red-soft);
-    border-color: var(--red-soft);
-    color: #fff;
-  }
-
-  footer {
-    text-align: center;
-    margin-top: 26px;
-    font-family: 'Caveat', cursive;
-    font-size: 15px;
-    color: var(--ink-navy-soft);
-    opacity: 0.8;
-  }
-
-  .cell.ocr { color: #A9631A; font-weight: 600; }
-  .cell.review-flag::after {
-    content: "";
-    position: absolute;
-    top: 3px; right: 3px;
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: #A9631A;
-  }
-
-  .review-bar {
-    display: none;
-    gap: 10px;
-    justify-content: center;
-    align-items: center;
-    max-width: 480px;
-    margin: 0 auto 14px;
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-  }
-  .review-bar.show { display: flex; flex-wrap: wrap; }
-  .review-bar .msg {
-    font-family: 'Caveat', cursive;
-    font-size: 16px;
-    color: var(--red-soft);
-    width: 100%;
-    text-align: center;
-  }
-  .review-bar button {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 8px 16px;
-    border-radius: 4px;
-    border: 1.5px solid var(--ink-navy-soft);
-    background: rgba(255,255,255,0.6);
-    cursor: pointer;
-  }
-  .review-bar button.confirm { background: var(--ink-navy); color: #EAF1F5; border-color: var(--ink-navy); }
-  .review-bar button.discard { color: var(--red-soft); border-color: var(--red-soft); }
-
-  fieldset[disabled] { opacity: 0.45; pointer-events: none; }
-
-  /* ---- import modal ---- */
-  .modal-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(10,20,30,0.65);
-    z-index: 50;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  .modal-overlay.show { display: flex; }
-  .modal {
-    background: var(--paper);
-    border-radius: 4px;
     width: min(560px, 100%);
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 24px 26px 26px;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    background: var(--paper);
+    border-radius: 6px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55);
+    padding: 28px 26px 30px;
   }
-  .modal h2 {
-    font-family: 'Space Mono', monospace;
-    font-size: 19px;
-    margin: 0 0 4px;
-    color: var(--ink-navy);
-  }
-  .modal .close {
-    float: right;
-    cursor: pointer;
-    font-family: 'Space Mono', monospace;
-    font-size: 18px;
-    color: var(--ink-navy-soft);
-    background: none;
-    border: none;
-  }
-  .tabs { display: flex; gap: 6px; margin: 16px 0 14px; }
+  header { margin-bottom: 18px; }
+  .title { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 24px; }
+  .title span { color: var(--red-soft); }
+  .subtitle { font-size: 13px; color: var(--ink-navy-soft); opacity: 0.8; margin-top: 2px; }
+
+  .steps-nav { display: none; }
+
+  /* input tabs */
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
   .tabs button {
-    flex: 1;
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 9px 0;
-    border-radius: 4px;
-    border: 1.5px solid var(--ink-navy-soft);
-    background: rgba(255,255,255,0.5);
-    color: var(--ink-navy);
-    cursor: pointer;
+    flex: 1; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px;
+    padding: 10px 0; border-radius: 4px; border: 1.5px solid var(--ink-navy-soft);
+    background: rgba(255,255,255,0.5); color: var(--ink-navy); cursor: pointer;
   }
   .tabs button.active { background: var(--ink-navy); color: #EAF1F5; }
   .tab-pane { display: none; }
   .tab-pane.active { display: block; }
 
-  .tab-pane textarea {
-    width: 100%;
-    min-height: 90px;
-    font-family: 'Space Mono', monospace;
-    font-size: 13px;
-    padding: 10px;
-    border-radius: 4px;
-    border: 1.5px solid var(--grid-line);
-    resize: vertical;
-    background: #fff;
-  }
-  .tab-pane .hint {
-    font-size: 12px;
-    color: var(--ink-navy-soft);
-    opacity: 0.75;
-    margin: 6px 0 12px;
-  }
-  .tab-pane .file-row { margin: 10px 0; font-size: 13px; }
-  .tab-pane .go-btn {
-    font-family: 'Inter', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    padding: 10px 18px;
-    border-radius: 4px;
-    border: none;
-    background: var(--ink-navy);
-    color: #EAF1F5;
-    cursor: pointer;
-  }
-  .tab-pane .go-btn:disabled { opacity: 0.4; cursor: default; }
+  .hint { font-size: 12.5px; color: var(--ink-navy-soft); opacity: 0.8; margin-bottom: 10px; }
 
-  .crop-wrap {
-    position: relative;
-    max-width: 100%;
-    margin: 12px 0;
-    touch-action: none;
-    user-select: none;
-    display: none;
+  textarea {
+    width: 100%; min-height: 84px; font-family: 'Space Mono', monospace; font-size: 13px;
+    padding: 10px; border-radius: 4px; border: 1.5px solid var(--grid-line); resize: vertical; background: #fff;
   }
+  .file-row { margin: 10px 0; font-size: 13px; }
+  .go-btn {
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; padding: 10px 18px;
+    border-radius: 4px; border: none; background: var(--ink-navy); color: #EAF1F5; cursor: pointer;
+  }
+  .go-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* photo crop */
+  .crop-wrap { position: relative; max-width: 100%; margin: 12px 0; touch-action: none; user-select: none; display: none; }
   .crop-wrap.show { display: block; }
   .crop-wrap canvas { width: 100%; display: block; border: 1px solid var(--grid-line); }
   .crop-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .crop-wrap .handle {
-    position: absolute;
-    width: 20px; height: 20px;
-    margin: -10px 0 0 -10px;
-    border-radius: 50%;
-    background: var(--red-soft);
-    border: 2px solid #fff;
-    cursor: grab;
-    pointer-events: all;
+    position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%;
+    background: var(--red-soft); border: 2px solid #fff; cursor: grab; pointer-events: all;
   }
-  .ocr-status {
-    font-family: 'Space Mono', monospace;
-    font-size: 12.5px;
-    color: var(--ink-navy-soft);
-    margin-top: 10px;
-    min-height: 16px;
-  }
+  .status-line { font-family: 'Space Mono', monospace; font-size: 12.5px; color: var(--ink-navy-soft); margin-top: 10px; min-height: 16px; }
 
-  /* ---- live camera scan ---- */
+  /* camera */
   .cam-wrap {
-    position: relative;
-    width: 100%;
-    max-width: 420px;
-    aspect-ratio: 1;
-    margin: 12px auto 0;
-    border-radius: 6px;
-    overflow: hidden;
-    background: #111;
-    display: none;
+    position: relative; width: 100%; max-width: 420px; aspect-ratio: 1; margin: 4px auto 0;
+    border-radius: 6px; overflow: hidden; background: #111; display: none;
   }
   .cam-wrap.show { display: block; }
-  .cam-wrap video {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    display: block;
-  }
+  .cam-wrap video { width: 100%; height: 100%; object-fit: cover; display: block; }
   .cam-reticle {
-    position: absolute;
-    inset: 10%;
-    border: 2px dashed rgba(255,255,255,0.85);
-    border-radius: 4px;
-    box-shadow: 0 0 0 2000px rgba(0,0,0,0.28);
-    pointer-events: none;
+    position: absolute; inset: 10%; border: 2px dashed rgba(255,255,255,0.85); border-radius: 4px;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.28); pointer-events: none;
   }
-  .cam-overlay {
-    position: absolute;
-    inset: 10%;
-    pointer-events: none;
-  }
-  .cam-controls {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    margin-top: 12px;
-    flex-wrap: wrap;
-  }
+  .cam-overlay { position: absolute; inset: 10%; pointer-events: none; }
+  .cam-controls { display: flex; gap: 10px; justify-content: center; margin: 10px 0; flex-wrap: wrap; }
   .cam-controls button {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 9px 16px;
-    border-radius: 4px;
-    border: 1.5px solid var(--ink-navy-soft);
-    background: rgba(255,255,255,0.6);
-    cursor: pointer;
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px; padding: 9px 16px;
+    border-radius: 4px; border: 1.5px solid var(--ink-navy-soft); background: rgba(255,255,255,0.6); cursor: pointer;
   }
-  .cam-controls button.primary { background: var(--ink-navy); color: #EAF1F5; border-color: var(--ink-navy); }
+  .cam-controls button.primary { background: var(--red-soft); color: #fff; border-color: var(--red-soft); }
   .cam-controls button:disabled { opacity: 0.4; cursor: default; }
-  .cam-status {
-    text-align: center;
-    font-family: 'Space Mono', monospace;
-    font-size: 12.5px;
-    color: var(--ink-navy-soft);
-    margin-top: 10px;
-    min-height: 16px;
+
+  /* grid (shared by correction + result steps) */
+  .board-section { display: none; }
+  .board-section.show { display: block; }
+  .board-wrap { display: flex; justify-content: center; margin: 6px 0 16px; }
+  #board, #resultBoard {
+    display: grid; grid-template-columns: repeat(9,1fr); grid-template-rows: repeat(9,1fr);
+    width: min(100%, 420px); aspect-ratio: 1; background: var(--ink-navy); border: 3px solid var(--ink-navy);
+    border-radius: 2px;
   }
+  .cell {
+    position: relative; background: rgba(255,255,255,0.6); border: 1px solid var(--grid-line);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace; font-size: clamp(15px, 3.2vw, 22px); font-weight: 700;
+    color: var(--ink-navy); cursor: pointer; user-select: none;
+  }
+  .cell:nth-child(3n) { border-right: 2.5px solid var(--ink-navy); }
+  .cell:nth-child(9n+1) { border-left: 2.5px solid var(--ink-navy); }
+  .cell:nth-child(n+19):nth-child(-n+27), .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2.5px solid var(--ink-navy); }
+  .row0, .row3, .row6 { border-top: 2.5px solid var(--ink-navy); }
+  .cell.given { color: var(--ink-navy); }
+  .cell.ocr { color: #A9631A; }
+  .cell.solved-in { color: var(--green); font-weight: 700; }
+  .cell.selected { background: var(--highlight); }
+  .cell.peer { background: var(--peer); }
+  .cell.conflict { background: #F6D3CE; color: var(--red) !important; }
+  .cell.readonly { cursor: default; }
+
+  .numpad {
+    display: grid; grid-template-columns: repeat(9,1fr); gap: 6px; max-width: 420px; margin: 0 auto 14px; width: 100%;
+  }
+  .numpad button {
+    font-family: 'Space Mono', monospace; font-weight: 700; font-size: 15px; padding: 8px 0;
+    border-radius: 4px; border: 1.5px solid var(--ink-navy-soft); background: rgba(255,255,255,0.5);
+    color: var(--ink-navy); cursor: pointer;
+  }
+  .numpad button.erase { grid-column: span 9; color: var(--red-soft); border-color: var(--red-soft); }
+  .numpad button:hover { background: var(--highlight); }
+
+  .action-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .action-row button {
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px; padding: 10px 18px;
+    border-radius: 4px; border: 1.5px solid var(--ink-navy-soft); background: rgba(255,255,255,0.6); cursor: pointer;
+  }
+  .action-row button.primary { background: var(--ink-navy); color: #EAF1F5; border-color: var(--ink-navy); }
+
+  .msg { font-size: 13px; color: var(--red-soft); text-align: center; min-height: 18px; margin-bottom: 8px; }
+
+  .legend { display: flex; gap: 16px; justify-content: center; font-size: 12px; color: var(--ink-navy-soft); margin-bottom: 14px; }
+  .legend span.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  .legend .navy-dot { background: var(--ink-navy); }
+  .legend .green-dot { background: var(--green); }
+
+  footer { text-align: center; margin-top: 20px; font-size: 12px; color: var(--ink-navy-soft); opacity: 0.7; }
 </style>
 </head>
 <body>
-
 <div class="page">
-  <div class="margin-rule"></div>
-
   <header>
-    <div>
-      <div class="title">Sudoku<span>.</span>solver</div>
-      <div class="subtitle">graph paper, worked in ink &amp; pencil</div>
-    </div>
-    <div class="meta-row">
-      <div>DIFFICULTY: <b id="diffLabel">MEDIUM</b></div>
-      <div>TIME: <b id="timer">00:00</b></div>
-    </div>
+    <div class="title">Sudoku<span>.</span>scanner</div>
+    <div class="subtitle">scan, upload, or paste a puzzle — get the solved grid</div>
   </header>
 
-  <div class="board-wrap">
-    <div id="board"></div>
-    <div class="stamp" id="stamp">SOLVED</div>
-  </div>
-
-  <div class="review-bar" id="reviewBar">
-    <div class="msg" id="reviewMsg">Orange digits were read automatically — fix any misreads, then confirm.</div>
-    <button class="confirm" id="confirmImport">Confirm puzzle</button>
-    <button class="discard" id="discardImport">Discard</button>
-  </div>
-
-  <div class="controls">
-    <div class="numpad" id="numpad"></div>
-    <fieldset id="mainControls" style="border:none;padding:0;margin:0;">
-    <div class="toolbar">
-      <select id="difficulty">
-        <option value="easy">Easy</option>
-        <option value="medium" selected>Medium</option>
-        <option value="hard">Hard</option>
-        <option value="expert">Expert</option>
-      </select>
-      <button id="newGame" class="primary">New puzzle</button>
-      <button id="importBtn">Import…</button>
-      <button id="notesToggle" class="notes-toggle">Pencil marks</button>
-      <button id="checkBtn">Check</button>
-      <button id="hintBtn">Hint</button>
-      <button id="solveBtn">Solve it</button>
-      <button id="clearBtn">Clear board</button>
-    </div>
-    </fieldset>
-  </div>
-
-  <footer>keyboard: click a cell, type 1–9 · backspace to erase · arrows to move</footer>
-</div>
-
-<div class="modal-overlay" id="importModal">
-  <div class="modal">
-    <button class="close" id="closeModal">✕</button>
-    <h2>Import a puzzle</h2>
+  <!-- STEP 1: input -->
+  <section id="step-input" class="board-section show">
     <div class="tabs">
-      <button class="tab-btn active" data-tab="text">Text / file</button>
-      <button class="tab-btn" data-tab="photo">Photo</button>
-      <button class="tab-btn" data-tab="camera">Camera (live)</button>
+      <button class="tab-btn active" data-tab="camera">📷 Camera</button>
+      <button class="tab-btn" data-tab="photo">🖼 Photo</button>
+      <button class="tab-btn" data-tab="text">⌨ Text</button>
     </div>
 
-    <div class="tab-pane active" id="tab-text">
-      <div class="hint">Paste 81 digits (row by row, left to right, top to bottom). Use 0, ., or a space for blanks.</div>
-      <textarea id="textInput" placeholder="530070000600195000098000060800060003400803001700020006060000280000419005000080079"></textarea>
-      <div class="file-row">or upload a file: <input type="file" id="fileInput" accept=".txt,.csv,text/plain,text/csv" /></div>
-      <button class="go-btn" id="loadTextBtn">Load puzzle</button>
+    <div class="tab-pane active" id="tab-camera">
+      <div class="hint">Point your rear camera at a printed Sudoku and fill the dashed box with the grid. Missing numbers appear on the live feed once it locks on. Needs HTTPS (GitHub Pages works) and camera permission.</div>
+      <div class="cam-controls">
+        <button class="primary" id="startCamBtn">Start camera</button>
+        <button id="stopCamBtn" disabled>Stop camera</button>
+        <button id="useCamBtn" disabled>Use this capture</button>
+      </div>
+      <div class="cam-wrap" id="camWrap">
+        <video id="camVideo" playsinline autoplay muted></video>
+        <div class="cam-reticle"></div>
+        <canvas class="cam-overlay" id="camOverlay"></canvas>
+      </div>
+      <div class="status-line" id="camStatus"></div>
     </div>
 
     <div class="tab-pane" id="tab-photo">
@@ -575,57 +194,48 @@
         <div class="handle" id="handle3"></div>
       </div>
       <button class="go-btn" id="extractBtn" disabled>Extract puzzle</button>
-      <div class="ocr-status" id="ocrStatus"></div>
+      <div class="status-line" id="ocrStatus"></div>
     </div>
 
-    <div class="tab-pane" id="tab-camera">
-      <div class="hint">Point your rear camera at a printed Sudoku, fill the dashed box with the grid, and hold steady. Missing numbers appear over the live feed once it's read. Needs an HTTPS page (GitHub Pages works) and camera permission.</div>
-      <div class="cam-controls">
-        <button class="primary" id="startCamBtn">Start camera</button>
-        <button id="stopCamBtn" disabled>Stop camera</button>
-        <button id="useCamBtn" disabled>Use this puzzle</button>
-      </div>
-      <div class="cam-wrap" id="camWrap">
-        <video id="camVideo" playsinline autoplay muted></video>
-        <div class="cam-reticle"></div>
-        <canvas class="cam-overlay" id="camOverlay"></canvas>
-      </div>
-      <div class="cam-status" id="camStatus"></div>
+    <div class="tab-pane" id="tab-text">
+      <div class="hint">Paste 81 digits (row by row). Use 0, ., or a space for blanks.</div>
+      <textarea id="textInput" placeholder="530070000600195000098000060800060003400803001700020006060000280000419005000080079"></textarea>
+      <div class="file-row">or upload a file: <input type="file" id="fileInput" accept=".txt,.csv,text/plain,text/csv" /></div>
+      <button class="go-btn" id="loadTextBtn">Load puzzle</button>
     </div>
-  </div>
+  </section>
+
+  <!-- STEP 2: correct -->
+  <section id="step-correct" class="board-section">
+    <div class="msg" id="correctMsg">Orange digits were read automatically — fix anything wrong, then solve.</div>
+    <div class="board-wrap"><div id="board"></div></div>
+    <div class="numpad" id="numpad"></div>
+    <div class="action-row">
+      <button class="primary" id="solveBtn">Solve</button>
+      <button id="backBtn">Start over</button>
+    </div>
+  </section>
+
+  <!-- STEP 3: result -->
+  <section id="step-result" class="board-section">
+    <div class="legend">
+      <span><span class="dot navy-dot"></span>from your puzzle</span>
+      <span><span class="dot green-dot"></span>solved by the app</span>
+    </div>
+    <div class="board-wrap"><div id="resultBoard"></div></div>
+    <div class="action-row">
+      <button class="primary" id="scanAnotherBtn">Scan another puzzle</button>
+    </div>
+  </section>
+
+  <footer>Solved with a backtracking constraint solver, run entirely in your browser.</footer>
 </div>
 
 <script>
 (function(){
   "use strict";
-
   const N = 9;
-  let solution = [];      // full solved grid
-  let puzzle = [];        // 0 = empty
-  let given = [];         // boolean mask of clue cells
-  let board = [];         // current user-facing values (0 = empty)
-  let notes = [];         // array of Set per cell
-  let selected = null;    // {r,c}
-  let notesMode = false;
-  let timerInterval = null;
-  let seconds = 0;
-  let ocrFlag = new Array(81).fill(false); // cells populated by import, awaiting confirmation
-  let reviewMode = false;
-  let preReviewSnapshot = null;
-  let ocrWorker = null;
-
-  const boardEl = document.getElementById('board');
-  const numpadEl = document.getElementById('numpad');
-  const stampEl = document.getElementById('stamp');
-  const timerEl = document.getElementById('timer');
-  const diffLabelEl = document.getElementById('diffLabel');
-  const diffSelect = document.getElementById('difficulty');
-
-  function idx(r,c){ return r*N + c; }
-
-  // ---------- Solver / generator (backtracking) ----------
-
-  function makeEmptyGrid(){ return new Array(81).fill(0); }
+  function idx(r,c){ return r*N+c; }
 
   function isValid(grid, r, c, val){
     for (let i=0;i<N;i++){
@@ -633,123 +243,61 @@
       if (grid[idx(i,c)] === val) return false;
     }
     const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
-    for (let i=0;i<3;i++) for (let j=0;j<3;j++){
-      if (grid[idx(br+i,bc+j)] === val) return false;
-    }
+    for (let i=0;i<3;i++) for (let j=0;j<3;j++) if (grid[idx(br+i,bc+j)] === val) return false;
     return true;
   }
 
-  function shuffledDigits(){
-    const d = [1,2,3,4,5,6,7,8,9];
-    for (let i=d.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [d[i],d[j]] = [d[j],d[i]];
-    }
-    return d;
-  }
-
-  function fillGrid(grid){
-    for (let p=0;p<81;p++){
-      if (grid[p] !== 0) continue;
-      const r = Math.floor(p/9), c = p%9;
-      for (const val of shuffledDigits()){
-        if (isValid(grid, r, c, val)){
-          grid[p] = val;
-          if (fillGrid(grid)) return true;
-          grid[p] = 0;
-        }
-      }
-      return false;
-    }
-    return true;
-  }
-
-  // solve, returns solved copy or null; also can count up to `limit` solutions
   function solveGrid(inputGrid, limit){
     limit = limit || 1;
     const grid = inputGrid.slice();
-    let count = 0;
-    let firstSolution = null;
-
-    function findEmpty(g){
-      for (let p=0;p<81;p++) if (g[p]===0) return p;
-      return -1;
-    }
-
+    let count = 0, firstSolution = null;
+    function findEmpty(g){ for (let p=0;p<81;p++) if (g[p]===0) return p; return -1; }
     function backtrack(g){
       if (count >= limit) return;
       const p = findEmpty(g);
-      if (p === -1){
-        count++;
-        if (!firstSolution) firstSolution = g.slice();
-        return;
-      }
+      if (p === -1){ count++; if (!firstSolution) firstSolution = g.slice(); return; }
       const r = Math.floor(p/9), c = p%9;
       for (let val=1; val<=9; val++){
         if (count >= limit) return;
-        if (isValid(g, r, c, val)){
-          g[p] = val;
-          backtrack(g);
-          g[p] = 0;
-        }
+        if (isValid(g,r,c,val)){ g[p]=val; backtrack(g); g[p]=0; }
       }
     }
     backtrack(grid);
     return { count, solution: firstSolution };
   }
 
-  function countSolutions(grid, limit){
-    return solveGrid(grid, limit).count;
+  // ---------- step control ----------
+  const stepInput = document.getElementById('step-input');
+  const stepCorrect = document.getElementById('step-correct');
+  const stepResult = document.getElementById('step-result');
+  function showStep(name){
+    stepInput.classList.toggle('show', name==='input');
+    stepCorrect.classList.toggle('show', name==='correct');
+    stepResult.classList.toggle('show', name==='result');
+    if (name !== 'input') stopCamera();
   }
 
-  function generatePuzzle(difficulty){
-    const full = makeEmptyGrid();
-    fillGrid(full);
+  // ---------- correction grid state ----------
+  const boardEl = document.getElementById('board');
+  const numpadEl = document.getElementById('numpad');
+  const correctMsg = document.getElementById('correctMsg');
+  let values = new Array(81).fill(0);
+  let flags = new Array(81).fill(false);
+  let selected = null;
 
-    const clueTargets = { easy: 42, medium: 34, hard: 28, expert: 24 };
-    const targetClues = clueTargets[difficulty] || 34;
-
-    const cells = [...Array(81).keys()];
-    for (let i=cells.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [cells[i],cells[j]] = [cells[j],cells[i]];
-    }
-
-    const puz = full.slice();
-    let clues = 81;
-    const maxAttempts = 81;
-    let attempts = 0;
-
-    for (const p of cells){
-      if (clues <= targetClues) break;
-      if (attempts++ > maxAttempts) break;
-      const backup = puz[p];
-      puz[p] = 0;
-      const res = countSolutions(puz, 2);
-      if (res !== 1){
-        puz[p] = backup; // revert, keep unique
-      } else {
-        clues--;
-      }
-    }
-    return { full, puz };
-  }
-
-  // ---------- UI rendering ----------
-
-  function buildBoardDom(){
-    boardEl.innerHTML = '';
-    for (let r=0;r<9;r++){
-      for (let c=0;c<9;c++){
-        const cell = document.createElement('div');
-        cell.className = 'cell row' + r;
-        cell.dataset.r = r;
-        cell.dataset.c = c;
-        cell.addEventListener('click', () => selectCell(r,c));
-        boardEl.appendChild(cell);
-      }
+  function buildBoardDom(container){
+    container.innerHTML = '';
+    for (let r=0;r<9;r++) for (let c=0;c<9;c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell row'+r;
+      container.appendChild(cell);
     }
   }
+  buildBoardDom(boardEl);
+  const resultBoardEl = document.getElementById('resultBoard');
+  buildBoardDom(resultBoardEl);
+
+  function cellEl(container,r,c){ return container.children[idx(r,c)]; }
 
   function buildNumpad(){
     numpadEl.innerHTML = '';
@@ -760,340 +308,104 @@
       numpadEl.appendChild(b);
     }
     const erase = document.createElement('button');
-    erase.textContent = '⌫';
+    erase.textContent = '⌫ Erase';
     erase.className = 'erase';
-    erase.style.gridColumn = 'span 9';
     erase.addEventListener('click', () => inputDigit(0));
     numpadEl.appendChild(erase);
   }
+  buildNumpad();
 
-  function cellEl(r,c){
-    return boardEl.children[idx(r,c)];
-  }
-
-  function render(){
-    for (let r=0;r<9;r++){
-      for (let c=0;c<9;c++){
-        const el = cellEl(r,c);
-        const p = idx(r,c);
-        const val = board[p];
-        el.classList.remove('given','user','solved-fill','conflict');
-        if (val !== 0){
-          el.textContent = val;
-          if (given[p]) el.classList.add('given');
-          else if (ocrFlag[p]) el.classList.add('ocr');
-          else el.classList.add('user');
-        } else {
-          el.textContent = '';
-          const noteSet = notes[p];
-          if (noteSet && noteSet.size){
-            const wrap = document.createElement('div');
-            wrap.className = 'notes';
-            for (let n=1;n<=9;n++){
-              const s = document.createElement('span');
-              s.textContent = noteSet.has(n) ? n : '';
-              wrap.appendChild(s);
-            }
-            el.appendChild(wrap);
-          }
-        }
-      }
+  function renderCorrectBoard(){
+    for (let r=0;r<9;r++) for (let c=0;c<9;c++){
+      const p = idx(r,c), el = cellEl(boardEl,r,c);
+      el.classList.remove('given','ocr','selected','peer','conflict');
+      el.textContent = values[p] !== 0 ? values[p] : '';
+      if (values[p] !== 0) el.classList.add(flags[p] ? 'ocr' : 'given');
+      el.onclick = () => { selected = {r,c}; renderCorrectBoard(); };
     }
-    highlightSelection();
-  }
-
-  function highlightSelection(){
-    for (let p=0;p<81;p++){
-      const r = Math.floor(p/9), c = p%9;
-      cellEl(r,c).classList.remove('peer','selected','same-value');
+    if (selected){
+      const { r, c } = selected;
+      const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
+      for (let i=0;i<9;i++){ cellEl(boardEl,r,i).classList.add('peer'); cellEl(boardEl,i,c).classList.add('peer'); }
+      for (let i=0;i<3;i++) for (let j=0;j<3;j++) cellEl(boardEl,br+i,bc+j).classList.add('peer');
+      cellEl(boardEl,r,c).classList.add('selected');
     }
-    if (!selected) return;
-    const { r, c } = selected;
-    const val = board[idx(r,c)];
-    const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
-    for (let i=0;i<9;i++){
-      cellEl(r,i).classList.add('peer');
-      cellEl(i,c).classList.add('peer');
-    }
-    for (let i=0;i<3;i++) for (let j=0;j<3;j++){
-      cellEl(br+i,bc+j).classList.add('peer');
-    }
-    if (val !== 0){
-      for (let p=0;p<81;p++){
-        if (board[p] === val){
-          const rr = Math.floor(p/9), cc = p%9;
-          cellEl(rr,cc).classList.add('same-value');
-        }
-      }
-    }
-    cellEl(r,c).classList.add('selected');
-  }
-
-  function selectCell(r,c){
-    selected = { r, c };
-    highlightSelection();
   }
 
   function inputDigit(n){
     if (!selected) return;
-    const { r, c } = selected;
-    const p = idx(r,c);
-    if (given[p]) return;
-
-    if (n === 0){
-      board[p] = 0;
-      notes[p].clear();
-      ocrFlag[p] = false;
-      render();
-      return;
-    }
-
-    if (notesMode){
-      board[p] = 0;
-      if (notes[p].has(n)) notes[p].delete(n);
-      else notes[p].add(n);
-    } else {
-      board[p] = n;
-      notes[p].clear();
-      ocrFlag[p] = false;
-    }
-    render();
-    if (!reviewMode) checkWin();
-  }
-
-  function checkWin(){
-    for (let p=0;p<81;p++){
-      if (board[p] === 0 || board[p] !== solution[p]) return;
-    }
-    showStamp();
-    stopTimer();
-  }
-
-  function showStamp(){
-    stampEl.classList.add('show');
-  }
-  function hideStamp(){
-    stampEl.classList.remove('show');
-  }
-
-  function clearConflictHighlights(){
-    for (let p=0;p<81;p++){
-      const r = Math.floor(p/9), c = p%9;
-      cellEl(r,c).classList.remove('conflict');
-    }
-  }
-
-  function runCheck(){
-    clearConflictHighlights();
-    let anyConflict = false;
-    for (let p=0;p<81;p++){
-      if (board[p] === 0) continue;
-      const r = Math.floor(p/9), c = p%9;
-      const val = board[p];
-      // temporarily clear to test against rest of board
-      const testGrid = board.slice();
-      testGrid[p] = 0;
-      if (!isValid(testGrid, r, c, val)){
-        cellEl(r,c).classList.add('conflict');
-        anyConflict = true;
-      }
-    }
-    return anyConflict;
-  }
-
-  function giveHint(){
-    if (!selected){
-      // pick first empty cell
-      for (let p=0;p<81;p++){
-        if (board[p] === 0){ selected = { r: Math.floor(p/9), c: p%9 }; break; }
-      }
-    }
-    if (!selected) return;
     const p = idx(selected.r, selected.c);
-    if (given[p]) return;
-    board[p] = solution[p];
-    given[p] = true; // lock hinted cell like a clue
-    notes[p].clear();
-    render();
-    checkWin();
+    values[p] = n;
+    flags[p] = false;
+    renderCorrectBoard();
   }
 
-  function solveAll(){
-    for (let p=0;p<81;p++){
-      board[p] = solution[p];
-      notes[p].clear();
-    }
-    render();
-    for (let p=0;p<81;p++){
-      const r = Math.floor(p/9), c = p%9;
-      if (!given[p]) cellEl(r,c).classList.add('solved-fill');
-    }
-    showStamp();
-    stopTimer();
-  }
+  document.addEventListener('keydown', (e) => {
+    if (!stepCorrect.classList.contains('show') || !selected) return;
+    const { r, c } = selected;
+    if (e.key >= '1' && e.key <= '9') inputDigit(parseInt(e.key,10));
+    else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') inputDigit(0);
+    else if (e.key === 'ArrowUp'){ selected = {r:Math.max(0,r-1),c}; renderCorrectBoard(); e.preventDefault(); }
+    else if (e.key === 'ArrowDown'){ selected = {r:Math.min(8,r+1),c}; renderCorrectBoard(); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft'){ selected = {r,c:Math.max(0,c-1)}; renderCorrectBoard(); e.preventDefault(); }
+    else if (e.key === 'ArrowRight'){ selected = {r,c:Math.min(8,c+1)}; renderCorrectBoard(); e.preventDefault(); }
+  });
 
-  function clearBoardKeepGivens(){
-    for (let p=0;p<81;p++){
-      if (!given[p]){
-        board[p] = 0;
-        notes[p].clear();
-      }
-    }
-    clearConflictHighlights();
-    hideStamp();
-    render();
-  }
-
-  // ---------- timer ----------
-  function startTimer(){
-    stopTimer();
-    seconds = 0;
-    timerEl.textContent = '00:00';
-    timerInterval = setInterval(() => {
-      seconds++;
-      const m = String(Math.floor(seconds/60)).padStart(2,'0');
-      const s = String(seconds%60).padStart(2,'0');
-      timerEl.textContent = m + ':' + s;
-    }, 1000);
-  }
-  function stopTimer(){
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  function resumeTimer(){
-    stopTimer();
-    const m = String(Math.floor(seconds/60)).padStart(2,'0');
-    const s = String(seconds%60).padStart(2,'0');
-    timerEl.textContent = m + ':' + s;
-    timerInterval = setInterval(() => {
-      seconds++;
-      const mm = String(Math.floor(seconds/60)).padStart(2,'0');
-      const ss = String(seconds%60).padStart(2,'0');
-      timerEl.textContent = mm + ':' + ss;
-    }, 1000);
-  }
-
-  // ---------- new game ----------
-  function newGame(){
-    if (reviewMode) exitReviewMode(false);
-    hideStamp();
-    clearConflictHighlights();
-    const difficulty = diffSelect.value;
-    diffLabelEl.textContent = difficulty.toUpperCase();
-    const { full, puz } = generatePuzzle(difficulty);
-    solution = full;
-    puzzle = puz;
-    board = puzzle.slice();
-    given = puzzle.map(v => v !== 0);
-    notes = new Array(81).fill(null).map(() => new Set());
-    ocrFlag = new Array(81).fill(false);
+  function beginCorrection(v, f, message){
+    values = v.slice();
+    flags = f.slice();
     selected = null;
-    render();
-    startTimer();
+    correctMsg.textContent = message;
+    showStep('correct');
+    renderCorrectBoard();
   }
 
-  // ---------- import: shared review flow ----------
-  const reviewBar = document.getElementById('reviewBar');
-  const reviewMsg = document.getElementById('reviewMsg');
-  const mainControls = document.getElementById('mainControls');
-
-  function enterReviewMode(values, flags, message){
-    preReviewSnapshot = { solution, puzzle, board, given, notes, ocrFlag, selected, seconds };
-    stopTimer();
-    hideStamp();
-    clearConflictHighlights();
-    board = values.slice();
-    given = new Array(81).fill(false);
-    ocrFlag = flags.slice();
-    notes = new Array(81).fill(null).map(() => new Set());
-    solution = new Array(81).fill(0);
-    selected = null;
-    reviewMode = true;
-    reviewMsg.textContent = message;
-    reviewBar.classList.add('show');
-    mainControls.setAttribute('disabled', 'disabled');
-    render();
-  }
-
-  function exitReviewMode(restore){
-    reviewMode = false;
-    reviewBar.classList.remove('show');
-    mainControls.removeAttribute('disabled');
-    if (restore && preReviewSnapshot){
-      ({ solution, puzzle, board, given, notes, ocrFlag, selected, seconds } = preReviewSnapshot);
-      render();
-      if (solution.some(v=>v!==0)) resumeTimer();
+  function runConflictCheck(){
+    let any = false;
+    for (let r=0;r<9;r++) for (let c=0;c<9;c++) cellEl(boardEl,r,c).classList.remove('conflict');
+    for (let p=0;p<81;p++){
+      if (values[p] === 0) continue;
+      const r = Math.floor(p/9), c = p%9, val = values[p];
+      const test = values.slice(); test[p] = 0;
+      if (!isValid(test,r,c,val)){ cellEl(boardEl,r,c).classList.add('conflict'); any = true; }
     }
-    preReviewSnapshot = null;
+    return any;
   }
 
-  function confirmImport(){
-    // basic conflict check first
-    const conflict = runCheck();
-    if (conflict){
-      reviewMsg.textContent = 'Some numbers conflict with each other (highlighted) — fix them first.';
+  document.getElementById('solveBtn').addEventListener('click', () => {
+    if (runConflictCheck()){
+      correctMsg.textContent = 'Some numbers conflict (highlighted) — fix them first.';
       return;
     }
-    const clueCount = board.filter(v => v !== 0).length;
+    const clueCount = values.filter(v => v !== 0).length;
     if (clueCount < 17){
-      reviewMsg.textContent = 'That\u2019s too few clues to be a valid Sudoku (need at least 17) — check for missed digits.';
+      correctMsg.textContent = 'Too few numbers to be a valid Sudoku (need at least 17) — check for missed digits.';
       return;
     }
-    const res = solveGrid(board, 2);
+    const res = solveGrid(values, 2);
     if (res.count === 0){
-      reviewMsg.textContent = 'This puzzle has no solution — one or more digits was likely misread. Fix and try again.';
+      correctMsg.textContent = 'No solution found — a digit was likely misread. Fix and try again.';
       return;
     }
-    solution = res.solution;
-    puzzle = board.slice();
-    given = board.map(v => v !== 0);
-    ocrFlag = new Array(81).fill(false);
-    notes = new Array(81).fill(null).map(() => new Set());
-    reviewMode = false;
-    reviewBar.classList.remove('show');
-    mainControls.removeAttribute('disabled');
-    preReviewSnapshot = null;
-    clearConflictHighlights();
-    render();
-    if (res.count === 1){
-      startTimer();
-    } else {
-      reviewMsg.textContent = '';
-      alert('Heads up: this puzzle has more than one valid solution. Solve/Check will use one of them.');
-      startTimer();
+    if (res.count > 1) alert('Heads up: more than one valid solution exists for these numbers — showing one of them.');
+    showResult(values, res.solution);
+  });
+
+  document.getElementById('backBtn').addEventListener('click', () => showStep('input'));
+  document.getElementById('scanAnotherBtn').addEventListener('click', () => showStep('input'));
+
+  function showResult(given, solution){
+    for (let r=0;r<9;r++) for (let c=0;c<9;c++){
+      const p = idx(r,c), el = cellEl(resultBoardEl,r,c);
+      el.classList.add('readonly');
+      el.classList.remove('given','solved-in');
+      el.textContent = solution[p];
+      el.classList.add(given[p] !== 0 ? 'given' : 'solved-in');
     }
+    showStep('result');
   }
 
-  document.getElementById('confirmImport').addEventListener('click', confirmImport);
-  document.getElementById('discardImport').addEventListener('click', () => exitReviewMode(true));
-
-  // ---------- import: text / file ----------
-  function parseTextPuzzle(raw){
-    const cleaned = raw
-      .replace(/[^0-9.xX_\-\s]/g, '')
-      .replace(/\s+/g, '');
-    const digits = [];
-    for (const ch of cleaned){
-      if (ch >= '1' && ch <= '9') digits.push(parseInt(ch,10));
-      else digits.push(0); // 0, ., x, X, _, - all mean blank
-    }
-    return digits.length === 81 ? digits : null;
-  }
-
-  const importModal = document.getElementById('importModal');
-  const importBtn = document.getElementById('importBtn');
-  const closeModalBtn = document.getElementById('closeModal');
-  const textInput = document.getElementById('textInput');
-  const fileInput = document.getElementById('fileInput');
-  const loadTextBtn = document.getElementById('loadTextBtn');
-
-  function openModal(){ importModal.classList.add('show'); }
-  function closeModal(){ importModal.classList.remove('show'); stopCamera(); }
-
-  importBtn.addEventListener('click', openModal);
-  closeModalBtn.addEventListener('click', closeModal);
-  importModal.addEventListener('click', (e) => { if (e.target === importModal) closeModal(); });
-
+  // ---------- tabs ----------
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1104,6 +416,9 @@
     });
   });
 
+  // ---------- text input ----------
+  const textInput = document.getElementById('textInput');
+  const fileInput = document.getElementById('fileInput');
   fileInput.addEventListener('change', () => {
     const f = fileInput.files[0];
     if (!f) return;
@@ -1111,52 +426,44 @@
     reader.onload = () => { textInput.value = reader.result; };
     reader.readAsText(f);
   });
-
-  loadTextBtn.addEventListener('click', () => {
-    const digits = parseTextPuzzle(textInput.value);
-    if (!digits){
-      alert('Could not find exactly 81 digits. Use 0 or . for blanks and try again.');
-      return;
+  function parseTextPuzzle(raw){
+    const cleaned = raw.replace(/[^0-9.xX_\-\s]/g,'').replace(/\s+/g,'');
+    const digits = [];
+    for (const ch of cleaned){
+      if (ch >= '1' && ch <= '9') digits.push(parseInt(ch,10));
+      else digits.push(0);
     }
-    closeModal();
-    textInput.value = '';
-    fileInput.value = '';
-    enterReviewMode(digits, new Array(81).fill(false), 'Check the numbers look right, then confirm.');
+    return digits.length === 81 ? digits : null;
+  }
+  document.getElementById('loadTextBtn').addEventListener('click', () => {
+    const digits = parseTextPuzzle(textInput.value);
+    if (!digits){ alert('Could not find exactly 81 digits. Use 0 or . for blanks and try again.'); return; }
+    textInput.value = ''; fileInput.value = '';
+    beginCorrection(digits, new Array(81).fill(false), 'Check the numbers, then solve.');
   });
 
-  // ---------- import: photo (perspective crop + OCR) ----------
+  // ---------- photo input ----------
   const imageInput = document.getElementById('imageInput');
   const cropWrap = document.getElementById('cropWrap');
   const photoCanvas = document.getElementById('photoCanvas');
-  const cropSvg = document.getElementById('cropSvg');
   const cropPoly = document.getElementById('cropPoly');
   const extractBtn = document.getElementById('extractBtn');
   const ocrStatus = document.getElementById('ocrStatus');
-  const handles = [0,1,2,3].map(i => document.getElementById('handle' + i));
-
-  let photoImg = null;
-  let corners = []; // in canvas-pixel space, order TL, TR, BR, BL
+  const handles = [0,1,2,3].map(i => document.getElementById('handle'+i));
+  let corners = [];
+  let ocrWorker = null;
 
   imageInput.addEventListener('change', () => {
     const f = imageInput.files[0];
     if (!f) return;
     const img = new Image();
     img.onload = () => {
-      photoImg = img;
-      const maxW = 520;
-      const scale = Math.min(1, maxW / img.width);
-      photoCanvas.width = img.width * scale;
-      photoCanvas.height = img.height * scale;
-      const ctx = photoCanvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, photoCanvas.width, photoCanvas.height);
-      const w = photoCanvas.width, h = photoCanvas.height;
-      const inset = Math.min(w,h) * 0.08;
-      corners = [
-        [inset, inset],
-        [w - inset, inset],
-        [w - inset, h - inset],
-        [inset, h - inset],
-      ];
+      const maxW = 480;
+      const scale = Math.min(1, maxW/img.width);
+      photoCanvas.width = img.width*scale; photoCanvas.height = img.height*scale;
+      photoCanvas.getContext('2d').drawImage(img,0,0,photoCanvas.width,photoCanvas.height);
+      const w = photoCanvas.width, h = photoCanvas.height, inset = Math.min(w,h)*0.08;
+      corners = [[inset,inset],[w-inset,inset],[w-inset,h-inset],[inset,h-inset]];
       cropWrap.classList.add('show');
       extractBtn.disabled = false;
       ocrStatus.textContent = '';
@@ -1168,38 +475,29 @@
   function layoutHandles(){
     const rect = photoCanvas.getBoundingClientRect();
     const wrapRect = cropWrap.getBoundingClientRect();
-    const scaleX = rect.width / photoCanvas.width;
-    const scaleY = rect.height / photoCanvas.height;
-    const offX = rect.left - wrapRect.left;
-    const offY = rect.top - wrapRect.top;
-    handles.forEach((h, i) => {
-      h.style.left = (offX + corners[i][0]*scaleX) + 'px';
-      h.style.top = (offY + corners[i][1]*scaleY) + 'px';
-    });
-    cropPoly.setAttribute('points', corners.map(([x,y]) =>
-      (offX + x*scaleX) + ',' + (offY + y*scaleY)).join(' '));
+    const scaleX = rect.width/photoCanvas.width, scaleY = rect.height/photoCanvas.height;
+    const offX = rect.left - wrapRect.left, offY = rect.top - wrapRect.top;
+    handles.forEach((h,i) => { h.style.left=(offX+corners[i][0]*scaleX)+'px'; h.style.top=(offY+corners[i][1]*scaleY)+'px'; });
+    cropPoly.setAttribute('points', corners.map(([x,y]) => (offX+x*scaleX)+','+(offY+y*scaleY)).join(' '));
   }
-
-  handles.forEach((h, i) => {
+  handles.forEach((h,i) => {
     let dragging = false;
     h.addEventListener('pointerdown', (e) => { dragging = true; h.setPointerCapture(e.pointerId); });
     h.addEventListener('pointerup', () => { dragging = false; });
     h.addEventListener('pointermove', (e) => {
       if (!dragging) return;
       const rect = photoCanvas.getBoundingClientRect();
-      const scaleX = photoCanvas.width / rect.width;
-      const scaleY = photoCanvas.height / rect.height;
-      let x = (e.clientX - rect.left) * scaleX;
-      let y = (e.clientY - rect.top) * scaleY;
+      let x = (e.clientX-rect.left)*(photoCanvas.width/rect.width);
+      let y = (e.clientY-rect.top)*(photoCanvas.height/rect.height);
       x = Math.max(0, Math.min(photoCanvas.width, x));
       y = Math.max(0, Math.min(photoCanvas.height, y));
-      corners[i] = [x, y];
+      corners[i] = [x,y];
       layoutHandles();
     });
   });
   window.addEventListener('resize', () => { if (cropWrap.classList.contains('show')) layoutHandles(); });
 
-  function solveLinearSystem(A, b){
+  function solveLinearSystem(A,b){
     const n = A.length;
     const M = A.map((row,i) => [...row, b[i]]);
     for (let col=0; col<n; col++){
@@ -1207,131 +505,106 @@
       for (let r=col+1;r<n;r++) if (Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r;
       [M[col],M[pivot]] = [M[pivot],M[col]];
       if (Math.abs(M[col][col]) < 1e-12) continue;
-      for (let r=0;r<n;r++){
-        if (r===col) continue;
-        const f = M[r][col]/M[col][col];
-        for (let c=col;c<=n;c++) M[r][c] -= f*M[col][c];
-      }
+      for (let r=0;r<n;r++){ if (r===col) continue; const f = M[r][col]/M[col][col]; for (let c=col;c<=n;c++) M[r][c] -= f*M[col][c]; }
     }
     return M.map((row,i) => row[n]/row[i]);
   }
-
-  function computeHomography(src, dst){
-    const A = [], b = [];
+  function computeHomography(src,dst){
+    const A=[], b=[];
     for (let i=0;i<4;i++){
-      const [x,y] = src[i], [u,v] = dst[i];
+      const [x,y]=src[i], [u,v]=dst[i];
       A.push([x,y,1,0,0,0,-x*u,-y*u]); b.push(u);
       A.push([0,0,0,x,y,1,-x*v,-y*v]); b.push(v);
     }
     const h = solveLinearSystem(A,b);
     return [h[0],h[1],h[2],h[3],h[4],h[5],h[6],h[7],1];
   }
-
-  function applyH(H, x, y){
-    const w = H[6]*x + H[7]*y + H[8];
-    return [(H[0]*x + H[1]*y + H[2]) / w, (H[3]*x + H[4]*y + H[5]) / w];
-  }
+  function applyH(H,x,y){ const w=H[6]*x+H[7]*y+H[8]; return [(H[0]*x+H[1]*y+H[2])/w, (H[3]*x+H[4]*y+H[5])/w]; }
 
   function warpToSquare(size){
     const dstSquare = [[0,0],[size,0],[size,size],[0,size]];
-    const H = computeHomography(dstSquare, corners); // maps square coords -> photo coords
+    const H = computeHomography(dstSquare, corners);
     const srcCtx = photoCanvas.getContext('2d');
-    const srcData = srcCtx.getImageData(0, 0, photoCanvas.width, photoCanvas.height);
-    const out = document.createElement('canvas');
-    out.width = size; out.height = size;
+    const srcData = srcCtx.getImageData(0,0,photoCanvas.width,photoCanvas.height);
+    const out = document.createElement('canvas'); out.width=size; out.height=size;
     const outCtx = out.getContext('2d');
-    const outData = outCtx.createImageData(size, size);
+    const outData = outCtx.createImageData(size,size);
     const sw = photoCanvas.width, sh = photoCanvas.height;
-    for (let y=0; y<size; y++){
-      for (let x=0; x<size; x++){
-        const [sx, sy] = applyH(H, x, y);
-        const ix = Math.round(sx), iy = Math.round(sy);
-        const di = (y*size + x) * 4;
-        if (ix>=0 && ix<sw && iy>=0 && iy<sh){
-          const si = (iy*sw + ix) * 4;
-          outData.data[di] = srcData.data[si];
-          outData.data[di+1] = srcData.data[si+1];
-          outData.data[di+2] = srcData.data[si+2];
-          outData.data[di+3] = 255;
-        } else {
-          outData.data[di] = outData.data[di+1] = outData.data[di+2] = 255;
-          outData.data[di+3] = 255;
-        }
-      }
+    for (let y=0;y<size;y++) for (let x=0;x<size;x++){
+      const [sx,sy] = applyH(H,x,y);
+      const ix = Math.round(sx), iy = Math.round(sy);
+      const di = (y*size+x)*4;
+      if (ix>=0 && ix<sw && iy>=0 && iy<sh){
+        const si = (iy*sw+ix)*4;
+        outData.data[di]=srcData.data[si]; outData.data[di+1]=srcData.data[si+1]; outData.data[di+2]=srcData.data[si+2]; outData.data[di+3]=255;
+      } else { outData.data[di]=outData.data[di+1]=outData.data[di+2]=255; outData.data[di+3]=255; }
     }
-    outCtx.putImageData(outData, 0, 0);
+    outCtx.putImageData(outData,0,0);
     return out;
   }
 
   function cellIsBlank(imgData){
     const { data, width, height } = imgData;
-    let dark = 0, total = 0;
-    for (let y=0; y<height; y++){
-      for (let x=0; x<width; x++){
-        const i = (y*width+x)*4;
-        const lum = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
-        if (lum < 130) dark++;
-        total++;
-      }
+    let dark=0, total=0;
+    for (let y=0;y<height;y++) for (let x=0;x<width;x++){
+      const i=(y*width+x)*4;
+      const lum = 0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
+      if (lum < 130) dark++;
+      total++;
     }
     return (dark/total) < 0.02;
   }
 
-  async function extractPuzzleFromPhoto(){
-    extractBtn.disabled = true;
-    ocrStatus.textContent = 'Straightening image…';
-    const size = 450;
-    const warped = warpToSquare(size);
-    const cellSize = size / 9;
-    const pad = Math.round(cellSize * 0.16);
-
-    if (!ocrWorker){
-      ocrStatus.textContent = 'Loading OCR engine (first time only)…';
-      ocrWorker = await Tesseract.createWorker('eng');
-      await ocrWorker.setParameters({
-        tessedit_char_whitelist: '123456789',
-        tessedit_pageseg_mode: '10'
-      });
-    }
-
-    const values = new Array(81).fill(0);
-    const flags = new Array(81).fill(false);
-    const ctx = warped.getContext('2d');
-
-    for (let r=0; r<9; r++){
-      for (let c=0; c<9; c++){
-        const p = r*9+c;
-        ocrStatus.textContent = `Reading cell ${p+1} of 81…`;
-        const x = c*cellSize + pad, y = r*cellSize + pad;
-        const w = cellSize - pad*2, h = cellSize - pad*2;
-        const imgData = ctx.getImageData(x, y, w, h);
-        if (cellIsBlank(imgData)) continue;
-
-        const cellCanvas = document.createElement('canvas');
-        cellCanvas.width = w; cellCanvas.height = h;
-        cellCanvas.getContext('2d').putImageData(imgData, 0, 0);
-
-        try {
-          const { data } = await ocrWorker.recognize(cellCanvas);
-          const digitMatch = (data.text || '').match(/[1-9]/);
-          if (digitMatch && data.confidence >= 35){
-            values[p] = parseInt(digitMatch[0], 10);
-            flags[p] = true;
-          }
-        } catch (err){ /* leave blank on OCR failure */ }
-      }
-    }
-
-    ocrStatus.textContent = 'Done.';
-    closeModal();
-    imageInput.value = '';
-    cropWrap.classList.remove('show');
-    enterReviewMode(values, flags, 'Orange digits were read automatically — fix any misreads, then confirm.');
+  async function ensureOcrWorker(statusEl){
+    if (ocrWorker) return ocrWorker;
+    statusEl.textContent = 'Loading OCR engine (first time only)…';
+    ocrWorker = await Tesseract.createWorker('eng');
+    await ocrWorker.setParameters({ tessedit_char_whitelist: '123456789', tessedit_pageseg_mode: '10' });
+    return ocrWorker;
   }
 
-  extractBtn.addEventListener('click', extractPuzzleFromPhoto);
+  async function ocrGrid(sourceCanvas, statusEl, statusPrefix){
+    const S = 450, cellSize = S/9, pad = Math.round(cellSize*0.16);
+    const worker = await ensureOcrWorker(statusEl);
+    const ctx = sourceCanvas.getContext('2d');
+    const values = new Array(81).fill(0), flags = new Array(81).fill(false);
+    let nonBlank = 0;
+    for (let r=0;r<9;r++) for (let c=0;c<9;c++){
+      const p = r*9+c;
+      statusEl.textContent = statusPrefix + ' cell ' + (p+1) + ' of 81…';
+      const x=c*cellSize+pad, y=r*cellSize+pad, w=cellSize-pad*2, h=cellSize-pad*2;
+      const imgData = ctx.getImageData(x,y,w,h);
+      if (cellIsBlank(imgData)) continue;
+      nonBlank++;
+      const cellCanvas = document.createElement('canvas');
+      cellCanvas.width=w; cellCanvas.height=h;
+      cellCanvas.getContext('2d').putImageData(imgData,0,0);
+      try {
+        const { data } = await worker.recognize(cellCanvas);
+        const m = (data.text||'').match(/[1-9]/);
+        if (m && data.confidence >= 35){ values[p] = parseInt(m[0],10); flags[p] = true; }
+      } catch(e){ /* leave blank */ }
+    }
+    return { values, flags, nonBlank };
+  }
 
-  // ---------- import: live camera ----------
+  extractBtn.addEventListener('click', async () => {
+    extractBtn.disabled = true;
+    ocrStatus.textContent = 'Straightening image…';
+    const warped = warpToSquare(450);
+    const { values, flags, nonBlank } = await ocrGrid(warped, ocrStatus, 'Reading');
+    ocrStatus.textContent = 'Done.';
+    imageInput.value = ''; cropWrap.classList.remove('show');
+    if (nonBlank < 12){
+      alert('Not enough digits were found (' + nonBlank + '). Try a clearer, more head-on photo.');
+      extractBtn.disabled = false;
+      return;
+    }
+    beginCorrection(values, flags, 'Orange digits were read automatically — fix anything wrong, then solve.');
+    extractBtn.disabled = false;
+  });
+
+  // ---------- camera input ----------
   const startCamBtn = document.getElementById('startCamBtn');
   const stopCamBtn = document.getElementById('stopCamBtn');
   const useCamBtn = document.getElementById('useCamBtn');
@@ -1339,23 +612,12 @@
   const camVideo = document.getElementById('camVideo');
   const camOverlay = document.getElementById('camOverlay');
   const camStatus = document.getElementById('camStatus');
-
-  let camStream = null;
-  let camLoopId = null;
-  let camScanning = false;
-  let lastGoodValues = null;
-  let lastGoodFlags = null;
+  let camStream = null, camLoopId = null, camScanning = false, lastGoodValues = null, lastGoodFlags = null;
 
   function coverMap(S, vw, vh, dx, dy, dw, dh){
     const scale = Math.max(S/vw, S/vh);
-    const cropOffX = (vw*scale - S)/2;
-    const cropOffY = (vh*scale - S)/2;
-    return {
-      sx: (dx + cropOffX) / scale,
-      sy: (dy + cropOffY) / scale,
-      sw: dw / scale,
-      sh: dh / scale
-    };
+    const cropOffX = (vw*scale - S)/2, cropOffY = (vh*scale - S)/2;
+    return { sx: (dx+cropOffX)/scale, sy: (dy+cropOffY)/scale, sw: dw/scale, sh: dh/scale };
   }
 
   async function startCamera(){
@@ -1363,8 +625,7 @@
     try {
       camStatus.textContent = 'Requesting camera…';
       camStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } },
-        audio: false
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false
       });
     } catch (err){
       camStatus.textContent = 'Could not access the camera (' + err.message + '). Check permissions and that this page is served over HTTPS.';
@@ -1373,34 +634,24 @@
     camVideo.srcObject = camStream;
     await camVideo.play();
     camWrap.classList.add('show');
-    startCamBtn.disabled = true;
-    stopCamBtn.disabled = false;
+    startCamBtn.disabled = true; stopCamBtn.disabled = false;
     camStatus.textContent = 'Scanning… hold the grid inside the box.';
     scheduleCamScan(600);
   }
 
   function stopCamera(){
-    if (camLoopId) { clearTimeout(camLoopId); camLoopId = null; }
-    if (camStream){
-      camStream.getTracks().forEach(t => t.stop());
-      camStream = null;
-    }
+    if (camLoopId){ clearTimeout(camLoopId); camLoopId = null; }
+    if (camStream){ camStream.getTracks().forEach(t => t.stop()); camStream = null; }
     camVideo.srcObject = null;
     camWrap.classList.remove('show');
-    startCamBtn.disabled = false;
-    stopCamBtn.disabled = true;
-    useCamBtn.disabled = true;
+    startCamBtn.disabled = false; stopCamBtn.disabled = true; useCamBtn.disabled = true;
     camStatus.textContent = '';
     const ctx = camOverlay.getContext('2d');
     ctx.clearRect(0,0,camOverlay.width,camOverlay.height);
-    lastGoodValues = null;
-    lastGoodFlags = null;
-    camScanning = false;
+    lastGoodValues = null; lastGoodFlags = null; camScanning = false;
   }
 
-  function scheduleCamScan(delay){
-    camLoopId = setTimeout(runCamScanPass, delay);
-  }
+  function scheduleCamScan(delay){ camLoopId = setTimeout(runCamScanPass, delay); }
 
   function drawAROverlay(values, solvedGrid){
     const size = camOverlay.width = camOverlay.height = camOverlay.clientWidth;
@@ -1408,98 +659,53 @@
     ctx.clearRect(0,0,size,size);
     const cell = size/9;
     ctx.font = '600 ' + Math.round(cell*0.55) + 'px "Space Mono", monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let p=0;p<81;p++){
-      if (values[p] !== 0) continue; // only draw the missing numbers
-      const r = Math.floor(p/9), c = p%9;
-      const x = c*cell + cell/2, y = r*cell + cell/2;
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillText(String(solvedGrid[p]), x+1, y+2);
-      ctx.fillStyle = '#4FD67A';
-      ctx.fillText(String(solvedGrid[p]), x, y);
+      if (values[p] !== 0) continue;
+      const r = Math.floor(p/9), c = p%9, x = c*cell+cell/2, y = r*cell+cell/2;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(String(solvedGrid[p]), x+1, y+2);
+      ctx.fillStyle = '#4FD67A'; ctx.fillText(String(solvedGrid[p]), x, y);
     }
   }
 
   async function runCamScanPass(){
-    if (!camStream){ return; }
+    if (!camStream) return;
     if (camScanning){ scheduleCamScan(400); return; }
     camScanning = true;
-
     const S = 450;
     const vw = camVideo.videoWidth, vh = camVideo.videoHeight;
     if (!vw || !vh){ camScanning = false; scheduleCamScan(300); return; }
-
-    // reticle = central 80% of the (square, object-fit:cover) video box
     const boxSize = camWrap.clientWidth;
     const reticle = { x: boxSize*0.10, y: boxSize*0.10, w: boxSize*0.80, h: boxSize*0.80 };
     const m = coverMap(boxSize, vw, vh, reticle.x, reticle.y, reticle.w, reticle.h);
-
     const cropCanvas = document.createElement('canvas');
     cropCanvas.width = S; cropCanvas.height = S;
-    const cropCtx = cropCanvas.getContext('2d');
-    cropCtx.drawImage(camVideo, m.sx, m.sy, m.sw, m.sh, 0, 0, S, S);
+    cropCanvas.getContext('2d').drawImage(camVideo, m.sx, m.sy, m.sw, m.sh, 0, 0, S, S);
 
-    if (!ocrWorker){
-      camStatus.textContent = 'Loading OCR engine (first time only)…';
-      ocrWorker = await Tesseract.createWorker('eng');
-      await ocrWorker.setParameters({
-        tessedit_char_whitelist: '123456789',
-        tessedit_pageseg_mode: '10'
-      });
-    }
-
+    await ensureOcrWorker(camStatus);
     camStatus.textContent = 'Reading grid…';
-    const cellSize = S/9;
-    const pad = Math.round(cellSize*0.16);
-    const values = new Array(81).fill(0);
-    const flags = new Array(81).fill(false);
-    let nonBlank = 0;
-
-    for (let r=0; r<9; r++){
-      for (let c=0; c<9; c++){
-        if (!camStream) { camScanning = false; return; } // stopped mid-scan
-        const p = r*9+c;
-        const x = c*cellSize+pad, y = r*cellSize+pad;
-        const w = cellSize-pad*2, h = cellSize-pad*2;
-        const imgData = cropCtx.getImageData(x, y, w, h);
-        if (cellIsBlank(imgData)) continue;
-        nonBlank++;
-        const cellCanvas = document.createElement('canvas');
-        cellCanvas.width = w; cellCanvas.height = h;
-        cellCanvas.getContext('2d').putImageData(imgData, 0, 0);
-        try {
-          const { data } = await ocrWorker.recognize(cellCanvas);
-          const digitMatch = (data.text || '').match(/[1-9]/);
-          if (digitMatch && data.confidence >= 35){
-            values[p] = parseInt(digitMatch[0], 10);
-            flags[p] = true;
-          }
-        } catch (err) { /* ignore, cell stays blank */ }
-      }
-    }
+    const { values, flags, nonBlank } = await (async () => {
+      if (!camStream){ return { values:[], flags:[], nonBlank:0 }; }
+      return ocrGrid(cropCanvas, camStatus, 'Reading');
+    })();
+    if (!camStream){ camScanning = false; return; }
 
     if (nonBlank < 12){
       camStatus.textContent = 'Scanning… fill the box with the full 9×9 grid.';
       useCamBtn.disabled = true;
-      const ctx = camOverlay.getContext('2d');
-      ctx.clearRect(0,0,camOverlay.width,camOverlay.height);
-      camScanning = false;
-      scheduleCamScan(800);
+      camOverlay.getContext('2d').clearRect(0,0,camOverlay.width,camOverlay.height);
+      camScanning = false; scheduleCamScan(800);
       return;
     }
-
     const res = solveGrid(values, 1);
     if (res.count === 1){
-      lastGoodValues = values;
-      lastGoodFlags = flags;
+      lastGoodValues = values; lastGoodFlags = flags;
       useCamBtn.disabled = false;
       camStatus.textContent = 'Locked on — showing the missing numbers.';
       drawAROverlay(values, res.solution);
     } else {
       camStatus.textContent = 'Scanning… realign the grid in the box (' + nonBlank + ' digits found).';
     }
-
     camScanning = false;
     scheduleCamScan(900);
   }
@@ -1508,43 +714,12 @@
   stopCamBtn.addEventListener('click', stopCamera);
   useCamBtn.addEventListener('click', () => {
     if (!lastGoodValues) return;
+    const v = lastGoodValues, f = lastGoodFlags;
     stopCamera();
-    closeModal();
-    enterReviewMode(lastGoodValues, lastGoodFlags, 'Orange digits were read from the camera — fix any misreads, then confirm.');
+    beginCorrection(v, f, 'Orange digits were read from the camera — fix anything wrong, then solve.');
   });
 
-  // ---------- keyboard ----------
-  document.addEventListener('keydown', (e) => {
-    if (!selected) return;
-    const { r, c } = selected;
-    if (e.key >= '1' && e.key <= '9'){
-      inputDigit(parseInt(e.key,10));
-    } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0'){
-      inputDigit(0);
-    } else if (e.key === 'ArrowUp'){ selectCell(Math.max(0,r-1), c); e.preventDefault(); }
-    else if (e.key === 'ArrowDown'){ selectCell(Math.min(8,r+1), c); e.preventDefault(); }
-    else if (e.key === 'ArrowLeft'){ selectCell(r, Math.max(0,c-1)); e.preventDefault(); }
-    else if (e.key === 'ArrowRight'){ selectCell(r, Math.min(8,c+1)); e.preventDefault(); }
-  });
-
-  // ---------- wire up controls ----------
-  document.getElementById('newGame').addEventListener('click', newGame);
-  document.getElementById('solveBtn').addEventListener('click', solveAll);
-  document.getElementById('clearBtn').addEventListener('click', clearBoardKeepGivens);
-  document.getElementById('checkBtn').addEventListener('click', () => {
-    const conflict = runCheck();
-    if (!conflict) checkWin();
-  });
-  document.getElementById('hintBtn').addEventListener('click', giveHint);
-  const notesBtn = document.getElementById('notesToggle');
-  notesBtn.addEventListener('click', () => {
-    notesMode = !notesMode;
-    notesBtn.classList.toggle('active', notesMode);
-  });
-
-  buildBoardDom();
-  buildNumpad();
-  newGame();
+  showStep('input');
 })();
 </script>
 </body>
