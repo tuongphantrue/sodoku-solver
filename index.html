@@ -238,7 +238,7 @@
     </div>
   </section>
 
-  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 5</span></footer>
+  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 6</span></footer>
 </div>
 
 <script>
@@ -340,6 +340,7 @@
       for (let i=0;i<3;i++) for (let j=0;j<3;j++) cellEl(boardEl,br+i,bc+j).classList.add('peer');
       cellEl(boardEl,r,c).classList.add('selected');
     }
+    return runConflictCheck();
   }
 
   function inputDigit(n){
@@ -365,9 +366,11 @@
     values = v.slice();
     flags = f.slice();
     selected = null;
-    correctMsg.textContent = message;
+    const hasConflicts = renderCorrectBoard();
+    correctMsg.textContent = hasConflicts
+      ? message + ' Cells outlined in red duplicate another number in the same row, column, or box — those are almost certainly misreads, so check them first.'
+      : message;
     showStep('correct');
-    renderCorrectBoard();
   }
 
   function runConflictCheck(){
