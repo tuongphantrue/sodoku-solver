@@ -238,7 +238,7 @@
     </div>
   </section>
 
-  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 7 (template matching)</span></footer>
+  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 8 (consensus mode)</span></footer>
 </div>
 
 <script>
@@ -747,8 +747,14 @@
   function buildDigitTemplates(){
     const fonts = [
       'bold 34px Arial, Helvetica, sans-serif',
-      'bold 34px "Space Mono", monospace',
       '34px Arial, Helvetica, sans-serif',
+      'bold 34px "Space Mono", monospace',
+      'bold 34px Verdana, Geneva, sans-serif',
+      'bold 34px "Trebuchet MS", sans-serif',
+      'bold 34px Tahoma, Geneva, sans-serif',
+      'bold 34px "Segoe UI", sans-serif',
+      'bold 34px Georgia, serif',
+      'bold 34px "Courier New", monospace',
     ];
     const size = 48;
     const templates = [];
@@ -814,12 +820,17 @@
     return m ? parseInt(m[0], 10) : 0;
   }
 
+  // Correctness over completeness: template matching and Tesseract are two
+  // independent methods that fail in different ways. A digit only gets
+  // auto-filled when BOTH agree — any disagreement, or either one drawing a
+  // blank, leaves the cell empty for you to fill in by hand rather than
+  // risk a wrong-but-present digit slipping through unnoticed.
   async function ocrGrid(sourceCanvas, statusEl, statusPrefix){
     const S = 630, cellSize = S/9, pad = Math.round(cellSize*0.13);
     const worker = await ensureOcrWorker(statusEl);
     const ctx = sourceCanvas.getContext('2d');
     const values = new Array(81).fill(0), flags = new Array(81).fill(false);
-    let nonBlank = 0;
+    let nonBlank = 0, uncertain = 0;
     for (let r=0;r<9;r++) for (let c=0;c<9;c++){
       const p = r*9+c;
       statusEl.textContent = statusPrefix + ' cell ' + (p+1) + ' of 81…';
@@ -830,25 +841,31 @@
       const binarized = binarizeCell(imgData);
 
       const tpl = matchTemplate(binarized);
-      let digit = 0;
-      if (tpl.digit && tpl.score >= 0.45 && tpl.margin >= 0.12){
-        digit = tpl.digit;
+      const tplDigit = (tpl.digit && tpl.score >= 0.4 && tpl.margin >= 0.1) ? tpl.digit : 0;
+
+      const cellCanvas = document.createElement('canvas');
+      cellCanvas.width=w; cellCanvas.height=h;
+      cellCanvas.getContext('2d').putImageData(binarized,0,0);
+      let ocrDigit = 0;
+      try { ocrDigit = await recognizeDigit(worker, cellCanvas); } catch(e){ ocrDigit = 0; }
+
+      if (tplDigit && ocrDigit && tplDigit === ocrDigit){
+        values[p] = tplDigit; flags[p] = true;
+      } else if (tplDigit && !ocrDigit && tpl.score >= 0.6 && tpl.margin >= 0.2){
+        // template alone, but only when it's unusually confident
+        values[p] = tplDigit; flags[p] = true;
       } else {
-        const cellCanvas = document.createElement('canvas');
-        cellCanvas.width=w; cellCanvas.height=h;
-        cellCanvas.getContext('2d').putImageData(binarized,0,0);
-        try { digit = await recognizeDigit(worker, cellCanvas); } catch(e){ digit = 0; }
+        uncertain++; // left blank on purpose — disagreement or low confidence
       }
-      if (digit){ values[p] = digit; flags[p] = true; }
     }
-    return { values, flags, nonBlank };
+    return { values, flags, nonBlank, uncertain };
   }
 
   extractBtn.addEventListener('click', async () => {
     extractBtn.disabled = true;
     ocrStatus.textContent = 'Straightening image…';
     const warped = warpToSquare(630);
-    const { values, flags, nonBlank } = await ocrGrid(warped, ocrStatus, 'Reading');
+    const { values, flags, nonBlank, uncertain } = await ocrGrid(warped, ocrStatus, 'Reading');
     ocrStatus.textContent = 'Done.';
     imageInput.value = ''; cropWrap.classList.remove('show');
     if (nonBlank < 12){
@@ -856,7 +873,10 @@
       extractBtn.disabled = false;
       return;
     }
-    beginCorrection(values, flags, 'Orange digits were read automatically — fix anything wrong, then solve.');
+    const msg = uncertain > 0
+      ? 'Orange digits were read automatically — ' + uncertain + ' cell(s) couldn\u2019t be read with confidence and were left blank on purpose. Fill those in, fix anything else wrong, then solve.'
+      : 'Orange digits were read automatically — fix anything wrong, then solve.';
+    beginCorrection(values, flags, msg);
     extractBtn.disabled = false;
   });
 
@@ -940,8 +960,8 @@
 
     await ensureOcrWorker(camStatus);
     camStatus.textContent = 'Reading grid…';
-    const { values, flags, nonBlank } = await (async () => {
-      if (!camStream){ return { values:[], flags:[], nonBlank:0 }; }
+    const { values, flags, nonBlank, uncertain } = await (async () => {
+      if (!camStream){ return { values:[], flags:[], nonBlank:0, uncertain:0 }; }
       return ocrGrid(cropCanvas, camStatus, 'Reading');
     })();
     if (!camStream){ camScanning = false; return; }
