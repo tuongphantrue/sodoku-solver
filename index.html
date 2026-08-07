@@ -238,7 +238,7 @@
     </div>
   </section>
 
-  <footer>Solved with a backtracking constraint solver, run entirely in your browser.</footer>
+  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 5</span></footer>
 </div>
 
 <script>
@@ -635,7 +635,7 @@
       if (lum < 130) dark++;
       total++;
     }
-    return (dark/total) < 0.02;
+    return (dark/total) < 0.012;
   }
 
   // Otsu's method: picks the luminance threshold that best separates ink from
@@ -680,6 +680,21 @@
     return ocrWorker;
   }
 
+  // Some digit shapes (6/9 are the classic offenders) occasionally fail under
+  // "treat as one character" segmentation but succeed under "treat as one word".
+  // Retry with the alternate mode only when the first pass finds nothing.
+  async function recognizeDigit(worker, cellCanvas){
+    let { data } = await worker.recognize(cellCanvas);
+    let m = (data.text||'').match(/[1-9]/);
+    if (!m){
+      await worker.setParameters({ tessedit_pageseg_mode: '8' });
+      ({ data } = await worker.recognize(cellCanvas));
+      m = (data.text||'').match(/[1-9]/);
+      await worker.setParameters({ tessedit_pageseg_mode: '10' });
+    }
+    return m ? parseInt(m[0], 10) : 0;
+  }
+
   async function ocrGrid(sourceCanvas, statusEl, statusPrefix){
     const S = 630, cellSize = S/9, pad = Math.round(cellSize*0.13);
     const worker = await ensureOcrWorker(statusEl);
@@ -697,9 +712,8 @@
       cellCanvas.width=w; cellCanvas.height=h;
       cellCanvas.getContext('2d').putImageData(binarizeCell(imgData),0,0);
       try {
-        const { data } = await worker.recognize(cellCanvas);
-        const m = (data.text||'').match(/[1-9]/);
-        if (m){ values[p] = parseInt(m[0],10); flags[p] = true; }
+        const digit = await recognizeDigit(worker, cellCanvas);
+        if (digit){ values[p] = digit; flags[p] = true; }
       } catch(e){ /* leave blank */ }
     }
     return { values, flags, nonBlank };
