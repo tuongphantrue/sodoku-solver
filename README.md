@@ -13,7 +13,7 @@ Built as one static `index.html` (no build step, no dependencies) so it runs dir
 Three ways to give it a puzzle:
 
 - **Camera (live)** — open your rear camera, fill the on-screen box with the grid, hold steady. The app rescans roughly every second and overlays the missing numbers directly on the video feed in green once it locks on. Needs HTTPS (GitHub Pages qualifies) and camera permission — it won't work opened as a local `file://`.
-- **Photo** — upload a picture of a grid, drag four corner handles onto its border, and it's read automatically via [Tesseract.js](https://github.com/naptha/tesseract.js) OCR after a perspective-correcting warp.
+- **Photo** — upload a picture of a grid, drag four corner handles onto its border, and it's read automatically via [Tesseract.js](https://github.com/naptha/tesseract.js) OCR after a perspective-correcting warp. You can also just **paste an image** (Ctrl+V / Cmd+V) after copying one — no need to save it as a file first.
 - **Text** — paste 81 digits (0 or `.` for blanks) or upload a `.txt`/`.csv`.
 
 Whichever way you go in, you land on a **correction screen** — digits read automatically show in orange, so you can tap and fix any OCR misread — then **Solve**. The result screen shows the finished grid: your original numbers in navy, the ones the solver filled in shown in green. Backtracking constraint solver, runs entirely in your browser.
