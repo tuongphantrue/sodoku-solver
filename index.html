@@ -468,6 +468,29 @@
     if (f) loadImageFile(f);
   });
 
+  function detectContentBounds(canvas){
+    const w = canvas.width, h = canvas.height;
+    const data = canvas.getContext('2d').getImageData(0,0,w,h).data;
+    const rowInk = new Array(h).fill(0), colInk = new Array(w).fill(0);
+    for (let y=0;y<h;y++){
+      for (let x=0;x<w;x++){
+        const i=(y*w+x)*4;
+        const lum = 0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
+        if (lum < 200){ rowInk[y]++; colInk[x]++; }
+      }
+    }
+    const rowThresh = w*0.03, colThresh = h*0.03;
+    let top=-1, bottom=-1, left=-1, right=-1;
+    for (let y=0;y<h;y++) if (rowInk[y] > rowThresh){ top = y; break; }
+    for (let y=h-1;y>=0;y--) if (rowInk[y] > rowThresh){ bottom = y; break; }
+    for (let x=0;x<w;x++) if (colInk[x] > colThresh){ left = x; break; }
+    for (let x=w-1;x>=0;x--) if (colInk[x] > colThresh){ right = x; break; }
+    if (top<0 || bottom<=top || left<0 || right<=left) return null;
+    const bw = right-left, bh = bottom-top;
+    if (bw < w*0.3 || bh < h*0.3) return null; // too small, probably a bad read — fall back
+    return { left, top, right, bottom };
+  }
+
   function loadImageFile(f){
     if (!f || !f.type || !f.type.startsWith('image/')) return;
     const img = new Image();
@@ -476,11 +499,17 @@
       const scale = Math.min(1, maxW/img.width);
       photoCanvas.width = img.width*scale; photoCanvas.height = img.height*scale;
       photoCanvas.getContext('2d').drawImage(img,0,0,photoCanvas.width,photoCanvas.height);
-      const w = photoCanvas.width, h = photoCanvas.height, inset = Math.min(w,h)*0.08;
-      corners = [[inset,inset],[w-inset,inset],[w-inset,h-inset],[inset,h-inset]];
+      const w = photoCanvas.width, h = photoCanvas.height;
+      const bounds = detectContentBounds(photoCanvas);
+      if (bounds){
+        corners = [[bounds.left,bounds.top],[bounds.right,bounds.top],[bounds.right,bounds.bottom],[bounds.left,bounds.bottom]];
+      } else {
+        const inset = Math.min(w,h)*0.08;
+        corners = [[inset,inset],[w-inset,inset],[w-inset,h-inset],[inset,h-inset]];
+      }
       cropWrap.classList.add('show');
       extractBtn.disabled = false;
-      ocrStatus.textContent = '';
+      ocrStatus.textContent = 'Corners were placed automatically — nudge the red dots if the box doesn\u2019t match the grid exactly.';
       layoutHandles();
       cropWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     };
@@ -609,6 +638,40 @@
     return (dark/total) < 0.02;
   }
 
+  // Otsu's method: picks the luminance threshold that best separates ink from
+  // background, then rewrites the cell as pure black-on-white. This removes
+  // anti-aliasing, faint highlight-cell shading, and lighting gradients that
+  // otherwise confuse Tesseract badly on small crops.
+  function binarizeCell(imgData){
+    const { data, width, height } = imgData;
+    const n = width*height;
+    const gray = new Uint8ClampedArray(n);
+    const hist = new Array(256).fill(0);
+    for (let i=0;i<n;i++){
+      const lum = Math.round(0.299*data[i*4] + 0.587*data[i*4+1] + 0.114*data[i*4+2]);
+      gray[i] = lum;
+      hist[lum]++;
+    }
+    let sum = 0; for (let t=0;t<256;t++) sum += t*hist[t];
+    let sumB = 0, wB = 0, maxVar = -1, threshold = 128;
+    for (let t=0;t<256;t++){
+      wB += hist[t];
+      if (wB === 0) continue;
+      const wF = n - wB;
+      if (wF === 0) break;
+      sumB += t*hist[t];
+      const mB = sumB/wB, mF = (sum-sumB)/wF;
+      const varBetween = wB*wF*(mB-mF)*(mB-mF);
+      if (varBetween > maxVar){ maxVar = varBetween; threshold = t; }
+    }
+    const out = new ImageData(width, height);
+    for (let i=0;i<n;i++){
+      const v = gray[i] < threshold ? 0 : 255;
+      out.data[i*4] = v; out.data[i*4+1] = v; out.data[i*4+2] = v; out.data[i*4+3] = 255;
+    }
+    return out;
+  }
+
   async function ensureOcrWorker(statusEl){
     if (ocrWorker) return ocrWorker;
     statusEl.textContent = 'Loading OCR engine (first time only)…';
@@ -618,7 +681,7 @@
   }
 
   async function ocrGrid(sourceCanvas, statusEl, statusPrefix){
-    const S = 450, cellSize = S/9, pad = Math.round(cellSize*0.16);
+    const S = 630, cellSize = S/9, pad = Math.round(cellSize*0.13);
     const worker = await ensureOcrWorker(statusEl);
     const ctx = sourceCanvas.getContext('2d');
     const values = new Array(81).fill(0), flags = new Array(81).fill(false);
@@ -632,7 +695,7 @@
       nonBlank++;
       const cellCanvas = document.createElement('canvas');
       cellCanvas.width=w; cellCanvas.height=h;
-      cellCanvas.getContext('2d').putImageData(imgData,0,0);
+      cellCanvas.getContext('2d').putImageData(binarizeCell(imgData),0,0);
       try {
         const { data } = await worker.recognize(cellCanvas);
         const m = (data.text||'').match(/[1-9]/);
@@ -645,7 +708,7 @@
   extractBtn.addEventListener('click', async () => {
     extractBtn.disabled = true;
     ocrStatus.textContent = 'Straightening image…';
-    const warped = warpToSquare(450);
+    const warped = warpToSquare(630);
     const { values, flags, nonBlank } = await ocrGrid(warped, ocrStatus, 'Reading');
     ocrStatus.textContent = 'Done.';
     imageInput.value = ''; cropWrap.classList.remove('show');
@@ -726,7 +789,7 @@
     if (!camStream) return;
     if (camScanning){ scheduleCamScan(400); return; }
     camScanning = true;
-    const S = 450;
+    const S = 630;
     const vw = camVideo.videoWidth, vh = camVideo.videoHeight;
     if (!vw || !vh){ camScanning = false; scheduleCamScan(300); return; }
     const boxSize = camWrap.clientWidth;
