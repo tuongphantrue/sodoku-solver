@@ -238,7 +238,7 @@
     </div>
   </section>
 
-  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 12 (threshold 0.75)</span></footer>
+  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 13 (model overrides veto at high confidence)</span></footer>
 </div>
 
 <script>
@@ -686,7 +686,7 @@
   // average ~99.8% confidence; wrong ones average ~44%), which is what makes
   // the confidence threshold below meaningful. Weights ship as digit_model.json
   // next to this file — no external ML library or network call needed to run it.
-  const MLP_SIZE = 20, MLP_MARGIN = 0.12, MLP_CONFIDENCE = 0.75;
+  const MLP_SIZE = 20, MLP_MARGIN = 0.12, MLP_CONFIDENCE = 0.75, MLP_HIGH_CONFIDENCE = 0.97;
   let digitModel = null;
 
   async function ensureDigitModel(){
@@ -812,14 +812,17 @@
 
   // A trained classifier is a fundamentally different (and now measured —
   // ~97% accuracy, well-calibrated confidence) method than heuristic template
-  // matching was, but the decision framework that already proved itself stays
-  // the same:
-  // - Model confident AND Tesseract silent or agrees → trust it.
-  // - Model confident BUT Tesseract actively found a DIFFERENT digit → real
-  //   disagreement between two independent methods, leave it blank.
+  // matching was. Evaluation showed correct predictions average ~99.8%
+  // confidence — so at very high confidence, the model itself is stronger
+  // evidence than a general-purpose OCR engine finding something else. Tiers:
+  // - Model near-certain (>= MLP_HIGH_CONFIDENCE) → trust it outright, even if
+  //   Tesseract disagrees. At this confidence level Tesseract is more likely
+  //   to be the one that's wrong.
+  // - Model confident (>= MLP_CONFIDENCE) but not near-certain, AND Tesseract
+  //   actively found a DIFFERENT digit → real disagreement between two
+  //   methods at a confidence level where either could be right, leave blank.
   // - Model not confident → fall back to whatever Tesseract found, if any.
-  // Silence from Tesseract isn't the same signal as active disagreement, so
-  // the two are still treated differently.
+  // Silence from Tesseract isn't the same signal as active disagreement.
   async function ocrGrid(sourceCanvas, statusEl, statusPrefix){
     const S = 630, cellSize = S/9, pad = Math.round(cellSize*0.13);
     const worker = await ensureOcrWorker(statusEl);
@@ -837,6 +840,7 @@
       const binarized = binarizeCell(imgData);
 
       const cls = classifyCell(binarized, model);
+      const modelNearCertain = cls.digit && cls.confidence >= MLP_HIGH_CONFIDENCE;
       const modelConfident = cls.digit && cls.confidence >= MLP_CONFIDENCE;
 
       const cellCanvas = document.createElement('canvas');
@@ -847,7 +851,9 @@
 
       const disagreement = cls.digit && ocrDigit && cls.digit !== ocrDigit;
 
-      if (disagreement){
+      if (modelNearCertain){
+        values[p] = cls.digit; flags[p] = true; // trust the model outright
+      } else if (disagreement){
         uncertain++; // two independent methods actively disagree — don't guess
       } else if (modelConfident){
         values[p] = cls.digit; flags[p] = true;
