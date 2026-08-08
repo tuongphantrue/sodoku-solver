@@ -238,7 +238,7 @@
     </div>
   </section>
 
-  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 11 (trained neural net)</span></footer>
+  <footer>Solved with a backtracking constraint solver, run entirely in your browser. <span id="buildTag" style="opacity:0.6;">build 12 (threshold 0.75)</span></footer>
 </div>
 
 <script>
@@ -686,7 +686,7 @@
   // average ~99.8% confidence; wrong ones average ~44%), which is what makes
   // the confidence threshold below meaningful. Weights ship as digit_model.json
   // next to this file — no external ML library or network call needed to run it.
-  const MLP_SIZE = 20, MLP_MARGIN = 0.12, MLP_CONFIDENCE = 0.85;
+  const MLP_SIZE = 20, MLP_MARGIN = 0.12, MLP_CONFIDENCE = 0.75;
   let digitModel = null;
 
   async function ensureDigitModel(){
